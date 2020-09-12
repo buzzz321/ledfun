@@ -1,2 +1,2 @@
 # ledfun
-jsut a hackaday led challenge
+Just a hackaday led challenge
