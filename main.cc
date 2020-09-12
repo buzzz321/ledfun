@@ -10,6 +10,7 @@ struct Sprite {
   int32_t x{0};
   int32_t y{0};
   int32_t size{64};
+  bool visible{true};
   Sprite(int32_t x, int32_t y) : x(x), y(y) {}
 };
 
@@ -18,7 +19,7 @@ constexpr uint32_t WIN_HEIGHT = 1200; // 1080;
 
 constexpr int32_t LED_WIDTH = 64;
 constexpr int32_t LED_HEIGHT = 64;
-constexpr int32_t LED_SCALE = 8;
+constexpr int32_t LED_SCALE = 4;
 constexpr float PI = 3.14159265;
 constexpr float AMPLITUDE = 180.0f;
 
@@ -62,6 +63,13 @@ void drawSinus(SDL_Renderer *renderer, SDL_Point *points) {
   }
   SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0x00, 0x00);
   SDL_RenderDrawPoints(renderer, points, WIN_WIDTH);
+}
+
+void fillTexture(SDL_Renderer *renderer, SDL_Texture *texture) {
+  SDL_SetRenderTarget(renderer, texture);
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  SDL_RenderFillRect(renderer, NULL);
 }
 
 void createGrid(std::vector<Sprite> &sprites) {
@@ -114,7 +122,19 @@ int main() {
   int access = 0;
   //  SDL_Point points[WIN_WIDTH];
   std::vector<Sprite> sprites;
+  uint32_t skipper{0};
+
   SDL_QueryTexture(texture, &textureFormat, &access, &srcR.w, &srcR.h);
+
+  auto blackTexture = SDL_CreateTexture(
+      renderer, textureFormat, SDL_TEXTUREACCESS_STATIC, LED_WIDTH, LED_HEIGHT);
+
+  if (blackTexture == NULL) {
+    printf("Unable to create texture SDL Error: %s\n", SDL_GetError());
+    goto endWithTexture;
+  }
+
+  fillTexture(renderer, blackTexture);
 
   srcR.h = LED_HEIGHT;
   srcR.w = LED_WIDTH;
@@ -125,13 +145,6 @@ int main() {
     goto end;
   }
 
-  // clear scroll texture
-  SDL_RenderClear(renderer);
-
-  // build scroll line
-
-  SDL_SetRenderTarget(renderer,
-                      NULL); // reset back to default render target (screen)
   SDL_Rect dest;
 
   dest.x = 100;
@@ -140,11 +153,13 @@ int main() {
   dest.h = LED_HEIGHT / LED_SCALE;
 
   createGrid(sprites);
-  while (true) {
 
+  while (true) {
+    SDL_SetRenderTarget(renderer,
+                        NULL); // reset back to default render target (screen)
     // clear screen
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-    SDL_RenderClear(renderer);
+    SDL_RenderClear(renderer); // use above color to clear screen/renderer
 
     // drawSinus(renderer, points);
     // Get the next event
@@ -160,18 +175,30 @@ int main() {
         goto end;
       }
     }
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0x00);
+    // SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0x00);
     for (auto sprite : sprites) {
       dest.x = sprite.x;
       dest.y = sprite.y;
       dest.w = sprite.size / LED_SCALE;
       dest.h = sprite.size / LED_SCALE;
-      // std::cout << dest.x << " " << dest.y << std::endl;
-      SDL_RenderCopy(renderer, texture, NULL, &dest);
+
+      if (!sprite.visible) {
+        SDL_RenderCopy(renderer, blackTexture, NULL, &dest);
+      } else {
+        // std::cout << dest.x << " " << dest.y << std::endl;
+        SDL_RenderCopy(renderer, texture, NULL, &dest);
+      }
+      skipper++;
+      if (skipper % 60) {
+        sprites[0].visible = !sprites[0].visible;
+      }
     }
     SDL_RenderPresent(renderer);
+    SDL_UpdateWindowSurface(window);
   }
 
+  SDL_DestroyTexture(blackTexture);
+endWithTexture:
   SDL_DestroyTexture(texture);
   SDL_DestroyRenderer(renderer);
 end:
