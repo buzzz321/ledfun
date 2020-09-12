@@ -2,6 +2,7 @@
 #include "SDL2/SDL_image.h"
 #include <iostream>
 #include <string>
+#include <time.h>
 #include <vector>
 
 using namespace std;
@@ -99,6 +100,7 @@ int main() {
 
   SDL_Renderer *renderer = SDL_CreateRenderer(
       window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
@@ -108,11 +110,9 @@ int main() {
   view.w = WIN_WIDTH;
   view.x = 0;
   view.y = 0;
-  if (SDL_RenderSetClipRect(renderer, &view) != 0) {
+  if (SDL_RenderSetClipRect(renderer, &view) != 0) { // set screen clipping
     return -1;
   }
-
-  // SDL_Delay(3000);
 
   auto texture = loadSurface(renderer, "rectangle.png");
 
@@ -120,7 +120,7 @@ int main() {
   SDL_Rect destR;
   uint32_t textureFormat = 0;
   int access = 0;
-  //  SDL_Point points[WIN_WIDTH];
+  timespec time1, time2, timerresolution;
   std::vector<Sprite> sprites;
   uint32_t skipper{0};
 
@@ -153,8 +153,10 @@ int main() {
   dest.h = LED_HEIGHT / LED_SCALE;
 
   createGrid(sprites);
+  clock_getres(CLOCK_PROCESS_CPUTIME_ID, &timerresolution);
 
   while (true) {
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     SDL_SetRenderTarget(renderer,
                         NULL); // reset back to default render target (screen)
     // clear screen
@@ -189,12 +191,15 @@ int main() {
         SDL_RenderCopy(renderer, texture, NULL, &dest);
       }
       skipper++;
-      if (skipper % 60) {
+      if (skipper % 65535 == 0) {
         sprites[0].visible = !sprites[0].visible;
       }
     }
     SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+    // std::cout << "resolution: " << timerresolution.tv_nsec << " timediff "
+    //<< (time2.tv_nsec - time1.tv_nsec) / 1000 << std::endl;
   }
 
   SDL_DestroyTexture(blackTexture);
