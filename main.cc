@@ -11,10 +11,13 @@ using namespace std;
 struct Sprite {
   int32_t x{0};
   int32_t y{0};
+  int32_t xOrig{0};
+  int32_t yOrig{0};
   int32_t scale{1};
   int32_t size{64};
   bool visible{true};
-  Sprite(int32_t x, int32_t y, int32_t scale) : x(x), y(y), scale(scale) {}
+  Sprite(int32_t x, int32_t y, int32_t scale)
+      : x(x), y(y), xOrig(x), yOrig(y), scale(scale) {}
 };
 
 constexpr uint32_t WIN_WIDTH = 1900;  // 1800;
@@ -24,7 +27,6 @@ constexpr int32_t LED_WIDTH = 64;
 constexpr int32_t LED_HEIGHT = 64;
 constexpr int32_t LED_SCALE = 4;
 constexpr float PI = 3.14159265;
-constexpr float AMPLITUDE = 180.0f;
 
 SDL_Texture *loadSurface(SDL_Renderer *renderer, std::string path) {
   SDL_Texture *newTexture = NULL;
@@ -79,18 +81,26 @@ void createGrid(std::vector<Sprite> &sprites) {
   }
 }
 
-void powerOffLeds(std::set<int32_t> &ledOff, uint32_t range,
+void powerOffLeds(std::vector<Sprite> &sprites, std::set<int32_t> &ledOff,
                   uint32_t amount = 10) {
 
+  auto range = sprites.size();
   while (ledOff.size() < amount) {
     auto index = rand() % (range - 1);
     ledOff.insert(index);
+    sprites[index].visible = true;
+    sprites[index].scale = LED_SCALE;
+    if (sprites[index].yOrig < (int32_t)WIN_HEIGHT / 2) {
+      sprites[index].y = rand() % (sprites[index].yOrig);
+    } else {
+      sprites[index].y = sprites[index].yOrig + rand() % (sprites[index].yOrig);
+    }
   }
 }
 
 void clamp_add(Sprite &sprite, int32_t amount, int32_t clamp) {
   sprite.scale += amount;
-  if (sprite.scale > clamp) {
+  if (abs(sprite.scale) > abs(clamp)) {
     sprite.scale = clamp;
   }
   if (sprite.scale != LED_SCALE) {
@@ -98,17 +108,20 @@ void clamp_add(Sprite &sprite, int32_t amount, int32_t clamp) {
   }
 }
 
-void dropLED(std::vector<Sprite> &sprites, std::set<int32_t> &offLeds,
-             int32_t scale) {
+void moveLedToOrig(std::vector<Sprite> &sprites, std::set<int32_t> &offLeds) {
   auto it = offLeds.begin();
   while (it != offLeds.end()) {
     // copy the current iterator then increment it
     std::set<int32_t>::iterator current = it++;
     int32_t index = *current;
 
-    clamp_add(sprites[index], 1, LED_SCALE);
-
-    if (sprites[index].scale == scale) {
+    if (sprites[index].yOrig < (int32_t)WIN_HEIGHT / 2) {
+      sprites[index].y += 1;
+    } else {
+      sprites[index].y -= 1;
+    }
+    if (sprites[index].y == sprites[index].yOrig) {
+      sprites[index].visible = true;
       // don't invalidate iterator it, because it is already
       // pointing to the next element
       offLeds.erase(current);
@@ -221,21 +234,11 @@ int main() {
         SDL_RenderCopy(renderer, texture, NULL, &dest);
       }
       skipper++;
-      if (skipper % 65535 == 0) {
-        // restore previous off leds
-        for (auto onIndex : offLeds) {
-          sprites[onIndex].visible = true;
-          if (sprites[onIndex].scale >= LED_SCALE) {
-            sprites[onIndex].scale = 0;
-          }
-        }
-        dropLED(sprites, offLeds,
-                LED_SCALE); // remove leds that have scaled down to
-                            // led_scale
-        powerOffLeds(offLeds, sprites.size());
-        for (auto offIndex : offLeds) {
-          sprites[offIndex].visible = false;
-        }
+      if (skipper % 1024 == 0) {
+
+        moveLedToOrig(sprites, offLeds);
+        // to led_scale
+        powerOffLeds(sprites, offLeds);
       }
       if (skipper % 65535 * 4 == 0) {
       }
