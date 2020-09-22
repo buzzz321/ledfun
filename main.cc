@@ -9,10 +9,12 @@
 using namespace std;
 
 struct Sprite {
-  int32_t x{0};
-  int32_t y{0};
+  float x{0};
+  float y{0};
   int32_t xOrig{0};
   int32_t yOrig{0};
+  float xAdd{0.0};
+  float yAdd{0.0};
   int32_t scale{1};
   int32_t size{64};
   bool visible{true};
@@ -20,8 +22,8 @@ struct Sprite {
       : x(x), y(y), xOrig(x), yOrig(y), scale(scale) {}
 };
 
-constexpr uint32_t WIN_WIDTH = 1900;  // 1800;
-constexpr uint32_t WIN_HEIGHT = 1200; // 1080;
+constexpr uint32_t WIN_WIDTH = 2560;  // 1800;
+constexpr uint32_t WIN_HEIGHT = 1440; // 1080;
 
 constexpr int32_t LED_WIDTH = 64;
 constexpr int32_t LED_HEIGHT = 64;
@@ -81,23 +83,6 @@ void createGrid(std::vector<Sprite> &sprites) {
   }
 }
 
-void powerOffLeds(std::vector<Sprite> &sprites, std::set<int32_t> &ledOff,
-                  uint32_t amount = 10) {
-
-  auto range = sprites.size();
-  while (ledOff.size() < amount) {
-    auto index = rand() % (range - 1);
-    ledOff.insert(index);
-    sprites[index].visible = true;
-    sprites[index].scale = LED_SCALE;
-    if (sprites[index].yOrig < (int32_t)WIN_HEIGHT / 2) {
-      sprites[index].y = rand() % (sprites[index].yOrig);
-    } else {
-      sprites[index].y = sprites[index].yOrig + rand() % (sprites[index].yOrig);
-    }
-  }
-}
-
 void clamp_add(Sprite &sprite, int32_t amount, int32_t clamp) {
   sprite.scale += amount;
   if (abs(sprite.scale) > abs(clamp)) {
@@ -108,6 +93,35 @@ void clamp_add(Sprite &sprite, int32_t amount, int32_t clamp) {
   }
 }
 
+void powerOffLeds(std::vector<Sprite> &sprites, std::set<int32_t> &ledOff,
+                  uint32_t amount = 10) {
+
+  auto range = sprites.size();
+  while (ledOff.size() < amount) {
+    auto index = rand() % (range - 1);
+    ledOff.insert(index);
+    sprites[index].visible = true;
+    sprites[index].scale = LED_SCALE;
+
+    if (sprites[index].yOrig < (int32_t)WIN_HEIGHT / 2) {
+      sprites[index].y = rand() % (sprites[index].yOrig);
+    } else {
+      sprites[index].y = sprites[index].yOrig + rand() % (sprites[index].yOrig);
+    }
+    if (sprites[index].xOrig < (int32_t)WIN_WIDTH / 2) {
+      sprites[index].x = rand() % (sprites[index].xOrig);
+    } else {
+      sprites[index].x = sprites[index].xOrig + rand() % (sprites[index].xOrig);
+    }
+    auto hyp = hypot(sprites[index].x - sprites[index].xOrig,
+                     sprites[index].y - sprites[index].yOrig);
+    sprites[index].xAdd = (fabs(sprites[index].x - sprites[index].xOrig)) / hyp;
+    sprites[index].yAdd = (fabs(sprites[index].y - sprites[index].yOrig)) / hyp;
+    //    printf(" hyp = %f xadd= %f yadd= %f \n", hyp, sprites[index].xAdd,
+    //           sprites[index].yAdd);
+  }
+}
+
 void moveLedToOrig(std::vector<Sprite> &sprites, std::set<int32_t> &offLeds) {
   auto it = offLeds.begin();
   while (it != offLeds.end()) {
@@ -115,17 +129,27 @@ void moveLedToOrig(std::vector<Sprite> &sprites, std::set<int32_t> &offLeds) {
     std::set<int32_t>::iterator current = it++;
     int32_t index = *current;
 
-    if (sprites[index].yOrig < (int32_t)WIN_HEIGHT / 2) {
-      sprites[index].y += 1;
-    } else {
-      sprites[index].y -= 1;
+    if ((int32_t)sprites[index].y != sprites[index].yOrig) {
+      if (sprites[index].yOrig < (int32_t)WIN_HEIGHT / 2) {
+        sprites[index].y += sprites[index].yAdd;
+      } else {
+        sprites[index].y -= sprites[index].yAdd;
+      }
     }
-    if (sprites[index].y == sprites[index].yOrig) {
+    if ((int32_t)sprites[index].x != sprites[index].xOrig) {
+      if (sprites[index].xOrig < (int32_t)WIN_WIDTH / 2) {
+        sprites[index].x += sprites[index].xAdd;
+      } else {
+        sprites[index].x -= sprites[index].xAdd;
+      }
+    }
+    if ((int32_t)sprites[index].y == sprites[index].yOrig &&
+        (int32_t)sprites[index].x == sprites[index].xOrig) {
       sprites[index].visible = true;
       // don't invalidate iterator it, because it is already
       // pointing to the next element
       offLeds.erase(current);
-      printf("removed led\n");
+      // printf("removed led\n");
     }
   }
 }
@@ -137,6 +161,7 @@ int main() {
   SDL_Window *window = SDL_CreateWindow("SDL2Test", SDL_WINDOWPOS_UNDEFINED,
                                         SDL_WINDOWPOS_UNDEFINED, WIN_WIDTH,
                                         WIN_HEIGHT, SDL_WINDOW_ALLOW_HIGHDPI);
+  SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
   SDL_Renderer *renderer = SDL_CreateRenderer(
       window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
@@ -238,7 +263,7 @@ int main() {
 
         moveLedToOrig(sprites, offLeds);
         // to led_scale
-        powerOffLeds(sprites, offLeds);
+        powerOffLeds(sprites, offLeds, 300);
       }
       if (skipper % 65535 * 4 == 0) {
       }
