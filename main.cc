@@ -154,7 +154,7 @@ void moveLedToOrig(std::vector<Sprite> &sprites, std::set<int32_t> &offLeds) {
   }
 }
 
-int main() {
+int main(int argv, char** args) {
   srand(time(NULL));
   SDL_Init(SDL_INIT_VIDEO);
 
@@ -220,10 +220,10 @@ int main() {
   dest.h = LED_HEIGHT / LED_SCALE;
 
   createGrid(sprites);
-  clock_getres(CLOCK_PROCESS_CPUTIME_ID, &timerresolution);
+  //clock_getres(CLOCK_PROCESS_CPUTIME_ID, &timerresolution);
 
   while (true) {
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     SDL_SetRenderTarget(renderer,
                         NULL); // reset back to default render target (screen)
     // clear screen
@@ -259,7 +259,7 @@ int main() {
         SDL_RenderCopy(renderer, texture, NULL, &dest);
       }
       skipper++;
-      if (skipper % 1024 == 0) {
+      if (skipper % 8192 == 0) {
 
         moveLedToOrig(sprites, offLeds);
         // to led_scale
@@ -270,7 +270,7 @@ int main() {
     }
     SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
     //    std::cout << "resolution: " << timerresolution.tv_nsec << "
     //    timediff "
     //              << (time2.tv_nsec - time1.tv_nsec) / 1000 << std::endl;
