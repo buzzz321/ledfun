@@ -1,5 +1,6 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
+#include "SDL2/SDL_mixer.h"
 #include <iostream>
 #include <set>
 #include <string>
@@ -57,6 +58,33 @@ SDL_Texture *loadSurface(SDL_Renderer *renderer, std::string path) {
   }
 
   return newTexture;
+}
+
+Mix_Music *loadMusic() {
+
+  // load support for the OGG and MOD sample/music formats
+  int flags = MIX_INIT_MOD;
+  int initted = Mix_Init(flags);
+  if ((initted & flags) == 0) {
+    printf("Mix_Init: Failed to init required mod support!\n");
+    printf("Mix_Init: %s\n", Mix_GetError());
+    exit(1);
+  }
+  // open 44.1KHz, signed 16bit, system byte order,
+  //      stereo audio, using 1024 byte chunks
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) == -1) {
+    printf("Mix_OpenAudio: %s\n", Mix_GetError());
+    exit(2);
+  }
+
+  printf("There are %d music deocoders available\n", Mix_GetNumMusicDecoders());
+  Mix_Music *music{nullptr};
+  music = Mix_LoadMUS("aurora.mod");
+  if (!music) {
+    printf("Mix_LoadMUS(\"aurora.mod\"): %s\n", Mix_GetError());
+    exit(1);
+  }
+  return music;
 }
 
 void fillTexture(SDL_Renderer *renderer, SDL_Texture *texture) {
@@ -154,9 +182,9 @@ void moveLedToOrig(std::vector<Sprite> &sprites, std::set<int32_t> &offLeds) {
   }
 }
 
-int main(int argv, char** args) {
+int main(int argv, char **args) {
   srand(time(NULL));
-  SDL_Init(SDL_INIT_VIDEO);
+  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
   SDL_Window *window = SDL_CreateWindow("SDL2Test", SDL_WINDOWPOS_UNDEFINED,
                                         SDL_WINDOWPOS_UNDEFINED, WIN_WIDTH,
@@ -190,6 +218,7 @@ int main(int argv, char** args) {
   std::vector<Sprite> sprites;
   std::set<int32_t> offLeds;
   uint32_t skipper{0};
+  Mix_Music *music = nullptr;
 
   SDL_QueryTexture(texture, &textureFormat, &access, &srcR.w, &srcR.h);
 
@@ -220,10 +249,17 @@ int main(int argv, char** args) {
   dest.h = LED_HEIGHT / LED_SCALE;
 
   createGrid(sprites);
-  //clock_getres(CLOCK_PROCESS_CPUTIME_ID, &timerresolution);
+  // clock_getres(CLOCK_PROCESS_CPUTIME_ID, &timerresolution);
+
+  music = loadMusic();
+  Mix_VolumeMusic(MIX_MAX_VOLUME / 10);
+  if (Mix_PlayMusic(music, -1) == -1) {
+    printf("Mix_PlayMusic: %s\n", Mix_GetError());
+    // well, there's no music, but most games don't break without music...
+  }
 
   while (true) {
-    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    // clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     SDL_SetRenderTarget(renderer,
                         NULL); // reset back to default render target (screen)
     // clear screen
@@ -259,7 +295,7 @@ int main(int argv, char** args) {
         SDL_RenderCopy(renderer, texture, NULL, &dest);
       }
       skipper++;
-      if (skipper % 8192 == 0) {
+      if (skipper % 4096 == 0) {
 
         moveLedToOrig(sprites, offLeds);
         // to led_scale
@@ -270,19 +306,22 @@ int main(int argv, char** args) {
     }
     SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
-    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+    // clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
     //    std::cout << "resolution: " << timerresolution.tv_nsec << "
     //    timediff "
     //              << (time2.tv_nsec - time1.tv_nsec) / 1000 << std::endl;
   }
-
+  Mix_HaltMusic();
   SDL_DestroyTexture(blackTexture);
+  Mix_FreeMusic(music);
 endWithTexture:
   SDL_DestroyTexture(texture);
   SDL_DestroyTexture(texture2);
   SDL_DestroyRenderer(renderer);
 
 end:
+  Mix_Quit();
+  IMG_Quit();
   SDL_DestroyWindow(window);
   SDL_Quit();
   return 0;

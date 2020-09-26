@@ -26,6 +26,8 @@ if(WIN32)
 else()
 	find_package(SDL2  REQUIRED)
 	find_package(SDL2_image  REQUIRED)
+    find_package(SDL2_mixer  REQUIRED)
+
 endif()
 include_directories(${SDL2_INCLUDE_DIRS} ${SDL2IMAGE_INCLUDE_DIRS})
 
@@ -38,6 +40,6 @@ add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
 if(WIN32)
 	target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image)
 else()
-	target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE SDL2::Main SDL2::Image m)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE SDL2::Main SDL2::Image SDL2::Mixer modplug m)
 endif()
 
